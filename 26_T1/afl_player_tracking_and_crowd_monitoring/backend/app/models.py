@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean , Text, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -51,4 +51,34 @@ class RefreshToken(Base):
     created_at = Column(DateTime, default=_now, nullable=False)
 
     user = relationship("User", back_populates="refresh_tokens")
+
+
+class Player(Base):
+    __tablename__ = "players"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String, nullable=False)
+    team = Column(String, nullable=False)
+    position = Column(String, nullable=False)
+
+    photo = Column(Text, nullable=True)
+
+    kicks = Column(Integer, default=0)
+    handballs = Column(Integer, default=0)
+    marks = Column(Integer, default=0)
+    tackles = Column(Integer, default=0)
+    goals = Column(Integer, default=0)
+    efficiency = Column(Integer, default=75)
+
+    age = Column(Integer, default=0)
+    height = Column(String)
+    weight = Column(String)
+
+    jersey_number = Column(Integer, default=0)
+    inside50s = Column(Integer, default=0)
+    disposals = Column(Integer, default=0)
+
+    team_logo = Column(String)
+    notes = Column(Text)
 
