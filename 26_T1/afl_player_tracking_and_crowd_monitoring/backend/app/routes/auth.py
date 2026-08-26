@@ -8,6 +8,7 @@ from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt import create_access_token, create_refresh_token, decode_refresh_token
 from app.auth.dependencies import get_current_user
 from app.config import JWT_EXPIRE_MINUTES
+from app.schemas.auth import UpdateRoleRequest
 
 router = APIRouter()
 
@@ -46,10 +47,15 @@ def register(user: RegisterRequest, db: Session = Depends(get_db)):
         if db.query(User).filter(User.username == user.username).first():
             raise HTTPException(status_code=409, detail="Username already taken")
 
+        # Validate role
+        valid_roles = ["user", "admin"]
+        role = user.role if user.role in valid_roles else "user"
+
         new_user = User(
             email=user.email,
             username=user.username,
-            password=hash_password(user.password)
+            password=hash_password(user.password),
+            role=role 
         )
         db.add(new_user)
         db.commit()
@@ -134,3 +140,67 @@ def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends
 
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error retrieving user")
+
+@router.put("/users/{user_id}/role", response_model=UserResponse)
+def update_user_role(
+    user_id: str,
+    request: UpdateRoleRequest,  # ← Use schema
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user role (only admins can do this)"""
+    
+    # Check if current user is admin
+    admin = db.query(User).filter(User.user_id == current_user["sub"]).first()
+    if not admin or admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can update user roles")
+    
+    # Validate role
+    valid_roles = ["user", "admin"]
+    if request.role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of {valid_roles}")
+    
+    target_user = db.query(User).filter(User.user_id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    target_user.role = request.role
+    db.commit()
+    db.refresh(target_user)
+    
+    return target_user
+
+@router.get("/users")
+def list_users(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all users (only admins can view)"""
+    
+    admin = db.query(User).filter(User.user_id == current_user["sub"]).first()
+    if not admin or admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view all users")
+    
+    users = db.query(User).all()
+    return {"users": users, "total": len(users)}
+
+
+@router.get("/users/{user_id}")
+def get_user_by_id(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get specific user (users can view own, admins can view any)"""
+    
+    # Allow users to view their own profile or admins to view anyone
+    if current_user["sub"] != user_id:
+        requester = db.query(User).filter(User.user_id == current_user["sub"]).first()
+        if not requester or requester.role != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    target_user = db.query(User).filter(User.user_id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return target_user

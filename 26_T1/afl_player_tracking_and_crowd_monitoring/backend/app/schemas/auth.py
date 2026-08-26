@@ -9,6 +9,7 @@ class RegisterRequest(BaseModel):
     username: str
     email: EmailStr
     password: str
+    role: Optional[str] = "user"
 
 
 class LoginRequest(BaseModel):
@@ -46,5 +47,6 @@ class RefreshRequest(BaseModel):
 class LogoutRequest(BaseModel):
     refresh_token: str
 
-
+class UpdateRoleRequest(BaseModel):
+    role: str
 
