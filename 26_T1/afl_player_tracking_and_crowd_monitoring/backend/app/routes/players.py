@@ -1,9 +1,13 @@
 import os
 import uuid
 import shutil
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException , Depends
 from app.config import UPLOAD_DIR
 from app.services.player_client import get_player_data
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models import Player
+from app.schemas.player import PlayerCreate , PlayerResponse
 
 router = APIRouter(prefix="/api", tags=["Players"])
 
@@ -29,3 +33,59 @@ async def run_player_tracking(file: UploadFile = File(...)):
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+@router.post("/player")
+def create_player(player: PlayerCreate, db: Session = Depends(get_db)):
+    db_player = Player(
+        name=player.name,
+        team=player.team,
+        position=player.position,
+        photo=player.photo,
+        kicks=player.kicks,
+        handballs=player.handballs,
+        marks=player.marks,
+        tackles=player.tackles,
+        goals=player.goals,
+        efficiency=player.efficiency,
+        age=player.age,
+        height=player.height,
+        weight=player.weight,
+        jersey_number=player.jerseyNumber,
+        inside50s=player.inside50s,
+        disposals=player.disposals,
+        team_logo=player.teamLogo,
+        notes=player.notes,
+    )
+
+    db.add(db_player)
+    db.commit()
+    db.refresh(db_player)
+
+    return {
+        "message": "Player created successfully",
+        "player": db_player
+    }
+
+@router.get("/players", response_model=list[PlayerResponse])
+def get_players(db: Session = Depends(get_db)):
+    players = db.query(Player).all()
+
+    return players
+
+@router.delete("/player/{player_id}")
+def delete_player(player_id: int, db: Session = Depends(get_db)):
+    player = db.query(Player).filter(Player.id == player_id).first()
+
+    if player is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Player not found"
+        )
+
+    db.delete(player)
+    db.commit()
+
+    return {
+        "message": "Player deleted successfully",
+        "player_id": player_id
+    }
