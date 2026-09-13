@@ -219,13 +219,15 @@ export default function CrowdMonitor() {
 
       <div className="lg:ml-64 pb-16 lg:pb-0">
         <div className="p-4 space-y-4">
-          {/* Live Clock */}
-          <LiveClock
-            isLive={isLive}
-            onToggleLive={setIsLive}
-            matchTime={{ quarter: 2, timeRemaining: "15:23" }}
-          />
-
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Crowd Monitor
+            </h1>
+            <p className="text-gray-600">
+              Stadium crowd density and safety analytics
+            </p>
+          </div>
+          
           {/* Overview Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
@@ -374,11 +376,11 @@ export default function CrowdMonitor() {
                           opacity: (zone.density / 100) * 0.8 + 0.2,
                         }}
                       >
-                        <div className="text-white text-xs font-medium p-1 text-center">
+                         <div className="text-white text-xs font-medium text-center h-full flex flex-col justify-center leading-tight px-1">
                           <div className="truncate">
                             {zone.name.split(" - ")[0]}
                           </div>
-                          <div>{zone.density}%</div>
+                            <div>{zone.density}% · {zone.current.toLocaleString()}</div>
                         </div>
                       </button>
                     ))}
@@ -414,7 +416,7 @@ export default function CrowdMonitor() {
               <Card>
                 <CardHeader>
                   <CardTitle>{selectedZone.name}</CardTitle>
-                  <CardDescription className="flex items-center gap-4">
+                   <div className="text-sm text-muted-foreground flex items-center gap-4">
                     <Badge
                       className={`
                          ${
@@ -436,7 +438,7 @@ export default function CrowdMonitor() {
                       {selectedZone.current.toLocaleString()} /{" "}
                       {selectedZone.capacity.toLocaleString()}
                     </span>
-                  </CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

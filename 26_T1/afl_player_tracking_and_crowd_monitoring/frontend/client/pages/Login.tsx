@@ -118,6 +118,24 @@ export default function Login() {
       localStorage.setItem("userEmail", loginForm.email);
       localStorage.setItem("access_token", "mock_access_token");
       localStorage.setItem("refresh_token", "mock_refresh_token");
+      const demoRoles: Record<string, string> = {
+        "admin@aflanalytics.com": "Administrator",
+        "coach@aflanalytics.com": "Coach",
+        "analyst@aflanalytics.com": "Analyst",
+        "demo@aflanalytics.com": "Team member",
+      };
+
+      const registeredUser = storedUsers.find(
+        (user: any) =>
+          user.email.toLowerCase() === loginForm.email.toLowerCase(),
+      );
+
+      localStorage.setItem(
+        "userRole",
+        registeredUser?.role ||
+        demoRoles[loginForm.email.toLowerCase()] ||
+        "Team member",
+      );
 
       // Successful login - redirect to dashboard
       navigate("/player-performance");
@@ -197,10 +215,8 @@ export default function Login() {
     // Store authentication state for new user
     localStorage.setItem("isAuthenticated", "true");
     localStorage.setItem("userEmail", signupForm.email);
-    localStorage.setItem(
-      "userName",
-      `${signupForm.firstName} ${signupForm.lastName}`,
-    );
+    localStorage.setItem("userName", `${signupForm.firstName} ${signupForm.lastName}`);
+    localStorage.setItem("userRole", signupForm.role || "Team member");
 
     // Clear the signup form
     setSignupForm({

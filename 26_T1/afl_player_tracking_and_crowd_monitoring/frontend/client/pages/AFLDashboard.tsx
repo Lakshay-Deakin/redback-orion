@@ -429,11 +429,8 @@ useEffect(() => {
           setCurrentJobId(null);
           setIsVideoAnalyzing(false);
           setVideoAnalysisComplete(data.status === "done" || data.status === "partial");
-          if (data.error) {
+                    if (data.error) {
             setVideoAnalysisError(data.error);
-          }
-          if (data.results?.crowd) {
-            navigate(`/crowd-monitor?jobId=${encodeURIComponent(data.job_id)}`);
           }
         }
       } catch (error) {
@@ -862,14 +859,20 @@ useEffect(() => {
 
   // Logout function
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("loggedInUser");
-    navigate("/");
+    const AUTH_KEYS = [
+      "isAuthenticated",
+      "userEmail",
+      "userName",
+      "authToken",
+      "authProvider",
+      "access_token",
+      "refresh_token",
+      "accessToken",
+      "refreshToken",
+      "loggedInUser",
+    ];
+    AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    navigate("/login", { replace: true });
   };
 
   // Video upload handlers
@@ -1179,227 +1182,246 @@ useEffect(() => {
     return { playerStats, crowdDensity };
   };
 
-  // Simulate getting JSON data from backend
+  //make the report use real data instead of fake players 
   const fetchBackendAnalysisData = async (analysisId: string) => {
-    // Simulate backend JSON response
-    return {
-      analysisId,
-      timestamp: new Date().toISOString(),
-      videoFile: {
-        name: selectedVideoFile?.name || "sample_video.mp4",
-        duration: "02:15:30",
-        size: "1.8 GB",
-        resolution: "1920x1080",
-        framerate: "30fps",
-      },
-      analysisType: selectedAnalysisType,
-      focusAreas: selectedFocusAreas,
-      processingTime: Math.floor(Math.random() * 300 + 120),
-      results: {
-        playerPerformance: [
-          {
-            playerId: "p001",
-            name: "Marcus Bontempelli",
-            team: "Western Bulldogs",
-            position: "Midfielder",
-            statistics: {
-              speed: { max: 32.4, average: 24.8, unit: "km/h" },
-              distance: { total: 12.8, sprints: 2.3, unit: "km" },
-              touches: { total: 28, effective: 24, efficiency: 85.7 },
-              goals: 2,
-              assists: 3,
-              tackles: 6,
-              marks: 8,
-              disposals: 31,
-              timeOnGround: 87.5,
-            },
-          },
-          {
-            playerId: "p002",
-            name: "Patrick Cripps",
-            team: "Carlton",
-            position: "Midfielder",
-            statistics: {
-              speed: { max: 29.8, average: 22.1, unit: "km/h" },
-              distance: { total: 13.2, sprints: 1.8, unit: "km" },
-              touches: { total: 35, effective: 31, efficiency: 88.6 },
-              goals: 1,
-              assists: 5,
-              tackles: 9,
-              marks: 6,
-              disposals: 34,
-              timeOnGround: 92.3,
-            },
-          },
-        ],
-        crowdAnalysis: {
-          totalAttendance: 47832,
-          capacity: 50000,
-          utilizationRate: 95.7,
-          sections: [
-            {
-              sectionId: "north_stand",
-              name: "Northern Stand",
-              attendance: 14250,
-              capacity: 15000,
-              density: 95.0,
-              noiseLevel: { peak: 95.2, average: 78.4, unit: "dB" },
-            },
-            {
-              sectionId: "south_stand",
-              name: "Southern Stand",
-              attendance: 11680,
-              capacity: 12000,
-              density: 97.3,
-              noiseLevel: { peak: 92.8, average: 76.9, unit: "dB" },
-            },
-          ],
-        },
-        highlights: [
-          {
-            timestamp: "00:03:45",
-            duration: 15,
-            type: "goal",
-            description: "Opening goal with crowd eruption",
-            players: ["Marcus Bontempelli"],
-            confidence: 0.94,
-          },
-        ],
-        metadata: {
-          confidence: 0.923,
-          processingVersion: "2.1.3",
-          qualityScore: 8.7,
-        },
-      },
-    };
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error("Please sign in again before downloading a report");
+    }
+
+    const response = await fetch(`${BACKEND_URL}/api/analytics/latest`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}) as any);
+      throw new Error(
+        body.detail || "Could not load your analysis results from the backend",
+      );
+    }
+
+    return response.json();
   };
 
-  // Convert backend JSON to formatted text
+//   // Convert backend JSON to formatted text
+//   const convertBackendDataToText = (data: any) => {
+//     return `AFL VIDEO ANALYSIS REPORT
+// Generated: ${new Date(data.timestamp).toLocaleString()}
+// Analysis ID: ${data.analysisId}
+
+// VIDEO INFORMATION
+// ================
+// File: ${data.videoFile.name}
+// Duration: ${data.videoFile.duration}
+// Size: ${data.videoFile.size}
+// Resolution: ${data.videoFile.resolution}
+// Processing Time: ${data.processingTime} seconds
+
+// PLAYER PERFORMANCE
+// ==================
+// ${data.results.playerPerformance
+//   .map(
+//     (player: any) => `
+// ${player.name} (${player.team} - ${player.position})
+// - Max Speed: ${player.statistics.speed.max} ${player.statistics.speed.unit}
+// - Average Speed: ${player.statistics.speed.average} ${player.statistics.speed.unit}
+// - Total Distance: ${player.statistics.distance.total} ${player.statistics.distance.unit}
+// - Goals: ${player.statistics.goals} | Assists: ${player.statistics.assists}
+// - Tackles: ${player.statistics.tackles} | Marks: ${player.statistics.marks}
+// - Disposals: ${player.statistics.disposals} | Efficiency: ${player.statistics.touches.efficiency}%
+// - Time on Ground: ${player.statistics.timeOnGround}%
+// `,
+//   )
+//   .join("\n")}
+
+// CROWD ANALYSIS
+// ==============
+// Total Attendance: ${data.results.crowdAnalysis.totalAttendance.toLocaleString()}
+// Stadium Utilization: ${data.results.crowdAnalysis.utilizationRate}%
+
+// ${data.results.crowdAnalysis.sections
+//   .map(
+//     (section: any) => `
+// ${section.name}: ${section.attendance.toLocaleString()} / ${section.capacity.toLocaleString()} (${section.density}%)
+// Peak Noise: ${section.noiseLevel.peak} ${section.noiseLevel.unit}
+// `,
+//   )
+//   .join("")}
+
+// HIGHLIGHTS
+// ==========
+// ${data.results.highlights
+//   .map(
+//     (highlight: any) =>
+//       `${highlight.timestamp} - ${highlight.type.toUpperCase()}: ${highlight.description} (${Math.round(highlight.confidence * 100)}% confidence)`,
+//   )
+//   .join("\n")}
+
+// TECHNICAL METADATA
+// ==================
+// Overall Confidence: ${Math.round(data.results.metadata.confidence * 100)}%
+// Quality Score: ${data.results.metadata.qualityScore}/10
+// Processing Version: ${data.results.metadata.processingVersion}
+
+// Report generated by AFL Analytics Platform
+// `;
+//   };
+
+//   // Convert backend JSON to HTML for PDF
+//   const convertBackendDataToHTML = (data: any) => {
+//     return `
+//       <div class="section">
+//         <h1>AFL Video Analysis Report</h1>
+//         <div class="metric">
+//           <strong>Generated:</strong> ${new Date(data.timestamp).toLocaleString()}<br>
+//           <strong>Analysis ID:</strong> ${data.analysisId}<br>
+//           <strong>Video File:</strong> ${data.videoFile.name}<br>
+//           <strong>Duration:</strong> ${data.videoFile.duration}<br>
+//           <strong>Processing Time:</strong> ${data.processingTime} seconds
+//         </div>
+//       </div>
+
+//       <div class="section">
+//         <h2>Player Performance Analysis</h2>
+//         <div class="player-grid">
+//           ${data.results.playerPerformance
+//             .map(
+//               (player: any) => `
+//             <div class="player-card">
+//               <h3 style="margin: 0 0 8px 0; color: #059669;">${player.name}</h3>
+//               <div class="player-team">${player.team} - ${player.position}</div>
+//               <div><strong>Max Speed:</strong> ${player.statistics.speed.max} ${player.statistics.speed.unit}</div>
+//               <div><strong>Distance:</strong> ${player.statistics.distance.total} ${player.statistics.distance.unit}</div>
+//               <div><strong>Goals:</strong> ${player.statistics.goals} | <strong>Assists:</strong> ${player.statistics.assists}</div>
+//               <div><strong>Efficiency:</strong> ${player.statistics.touches.efficiency}%</div>
+//             </div>
+//           `,
+//             )
+//             .join("")}
+//         </div>
+//       </div>
+
+//       <div class="section">
+//         <h2>Crowd Analysis</h2>
+//         <div class="metric">
+//           <strong>Total Attendance:</strong> ${data.results.crowdAnalysis.totalAttendance.toLocaleString()}<br>
+//           <strong>Utilization Rate:</strong> ${data.results.crowdAnalysis.utilizationRate}%
+//         </div>
+//         ${data.results.crowdAnalysis.sections
+//           .map(
+//             (section: any) => `
+//           <div class="crowd-item">
+//             <strong>${section.name}:</strong> ${section.attendance.toLocaleString()} / ${section.capacity.toLocaleString()} (${section.density}%)<br>
+//             Peak Noise: ${section.noiseLevel.peak} ${section.noiseLevel.unit}
+//           </div>
+//         `,
+//           )
+//           .join("")}
+//       </div>
+
+//       <div class="section">
+//         <h2>Technical Information</h2>
+//         <div class="metric">
+//           <strong>Analysis Confidence:</strong> ${Math.round(data.results.metadata.confidence * 100)}%<br>
+//           <strong>Quality Score:</strong> ${data.results.metadata.qualityScore}/10<br>
+//           <strong>Processing Version:</strong> ${data.results.metadata.processingVersion}
+//         </div>
+//       </div>
+//     `;
+//   };
   const convertBackendDataToText = (data: any) => {
-    return `AFL VIDEO ANALYSIS REPORT
-Generated: ${new Date(data.timestamp).toLocaleString()}
-Analysis ID: ${data.analysisId}
+    const created = data.created_at
+      ? new Date(data.created_at).toLocaleString()
+      : "Unknown";
+    const player = data.player;
+    const crowd = data.crowd;
 
-VIDEO INFORMATION
+    const playerSection = player
+      ? `PLAYER TRACKING
 ================
-File: ${data.videoFile.name}
-Duration: ${data.videoFile.duration}
-Size: ${data.videoFile.size}
-Resolution: ${data.videoFile.resolution}
-Processing Time: ${data.processingTime} seconds
+Frames with tracking: ${player.tracking.frames_with_tracking}
+Unique players detected: ${player.tracking.unique_player_ids}
+Total player detections: ${player.tracking.total_player_detections}
+Average players per frame: ${player.tracking.average_players_per_frame}
+Peak players in a single frame: ${player.tracking.peak_players_in_frame}
+Formations detected: ${player.formation.count}
+Tackles detected: ${player.tackles.count}`
+      : "No player-tracking results were returned for this video.";
 
-PLAYER PERFORMANCE
-==================
-${data.results.playerPerformance
-  .map(
-    (player: any) => `
-${player.name} (${player.team} - ${player.position})
-- Max Speed: ${player.statistics.speed.max} ${player.statistics.speed.unit}
-- Average Speed: ${player.statistics.speed.average} ${player.statistics.speed.unit}
-- Total Distance: ${player.statistics.distance.total} ${player.statistics.distance.unit}
-- Goals: ${player.statistics.goals} | Assists: ${player.statistics.assists}
-- Tackles: ${player.statistics.tackles} | Marks: ${player.statistics.marks}
-- Disposals: ${player.statistics.disposals} | Efficiency: ${player.statistics.touches.efficiency}%
-- Time on Ground: ${player.statistics.timeOnGround}%
-`,
-  )
-  .join("\n")}
+    const crowdSection = crowd
+      ? `CROWD MONITORING
+================
+Frames processed: ${crowd.total_frames_processed}
+Peak person count: ${crowd.peak_person_count}
+Crowd state: ${crowd.crowd_state}
+Highest density zone: ${crowd.highest_density_zone}
+Highest risk zone: ${crowd.highest_risk_zone}`
+      : "No crowd-monitoring results were returned for this video.";
 
-CROWD ANALYSIS
-==============
-Total Attendance: ${data.results.crowdAnalysis.totalAttendance.toLocaleString()}
-Stadium Utilization: ${data.results.crowdAnalysis.utilizationRate}%
+    return `AFL VIDEO ANALYSIS REPORT
+Generated: ${new Date().toLocaleString()}
+Job ID: ${data.job_id}
+Job Status: ${data.status}
+Analysis Completed: ${created}
 
-${data.results.crowdAnalysis.sections
-  .map(
-    (section: any) => `
-${section.name}: ${section.attendance.toLocaleString()} / ${section.capacity.toLocaleString()} (${section.density}%)
-Peak Noise: ${section.noiseLevel.peak} ${section.noiseLevel.unit}
-`,
-  )
-  .join("")}
+${playerSection}
 
-HIGHLIGHTS
-==========
-${data.results.highlights
-  .map(
-    (highlight: any) =>
-      `${highlight.timestamp} - ${highlight.type.toUpperCase()}: ${highlight.description} (${Math.round(highlight.confidence * 100)}% confidence)`,
-  )
-  .join("\n")}
-
-TECHNICAL METADATA
-==================
-Overall Confidence: ${Math.round(data.results.metadata.confidence * 100)}%
-Quality Score: ${data.results.metadata.qualityScore}/10
-Processing Version: ${data.results.metadata.processingVersion}
-
-Report generated by AFL Analytics Platform
+${crowdSection}
+${data.error ? `\nNOTES\n=====\n${data.error}\n` : ""}
+Report generated by AFL Analytics Platform from real backend analysis data.
 `;
   };
 
-  // Convert backend JSON to HTML for PDF
   const convertBackendDataToHTML = (data: any) => {
+    const created = data.created_at
+      ? new Date(data.created_at).toLocaleString()
+      : "Unknown";
+    const player = data.player;
+    const crowd = data.crowd;
+
+    const playerHtml = player
+      ? `
+      <div class="section">
+        <h2>Player Tracking</h2>
+        <div class="metric">
+          <strong>Frames with tracking:</strong> ${player.tracking.frames_with_tracking}<br>
+          <strong>Unique players detected:</strong> ${player.tracking.unique_player_ids}<br>
+          <strong>Total player detections:</strong> ${player.tracking.total_player_detections}<br>
+          <strong>Formations detected:</strong> ${player.formation.count}<br>
+          <strong>Tackles detected:</strong> ${player.tackles.count}
+        </div>
+      </div>
+    `
+      : `<div class="section"><p>No player-tracking results were returned for this video.</p></div>`;
+
+    const crowdHtml = crowd
+      ? `
+      <div class="section">
+        <h2>Crowd Monitoring</h2>
+        <div class="metric">
+          <strong>Frames processed:</strong> ${crowd.total_frames_processed}<br>
+          <strong>Peak person count:</strong> ${crowd.peak_person_count}<br>
+          <strong>Crowd state:</strong> ${crowd.crowd_state}<br>
+          <strong>Highest risk zone:</strong> ${crowd.highest_risk_zone}
+        </div>
+      </div>
+    `
+      : `<div class="section"><p>No crowd-monitoring results were returned for this video.</p></div>`;
+
     return `
       <div class="section">
         <h1>AFL Video Analysis Report</h1>
         <div class="metric">
-          <strong>Generated:</strong> ${new Date(data.timestamp).toLocaleString()}<br>
-          <strong>Analysis ID:</strong> ${data.analysisId}<br>
-          <strong>Video File:</strong> ${data.videoFile.name}<br>
-          <strong>Duration:</strong> ${data.videoFile.duration}<br>
-          <strong>Processing Time:</strong> ${data.processingTime} seconds
+          <strong>Job ID:</strong> ${data.job_id}<br>
+          <strong>Status:</strong> ${data.status}<br>
+          <strong>Analysis Completed:</strong> ${created}
         </div>
       </div>
-
-      <div class="section">
-        <h2>Player Performance Analysis</h2>
-        <div class="player-grid">
-          ${data.results.playerPerformance
-            .map(
-              (player: any) => `
-            <div class="player-card">
-              <h3 style="margin: 0 0 8px 0; color: #059669;">${player.name}</h3>
-              <div class="player-team">${player.team} - ${player.position}</div>
-              <div><strong>Max Speed:</strong> ${player.statistics.speed.max} ${player.statistics.speed.unit}</div>
-              <div><strong>Distance:</strong> ${player.statistics.distance.total} ${player.statistics.distance.unit}</div>
-              <div><strong>Goals:</strong> ${player.statistics.goals} | <strong>Assists:</strong> ${player.statistics.assists}</div>
-              <div><strong>Efficiency:</strong> ${player.statistics.touches.efficiency}%</div>
-            </div>
-          `,
-            )
-            .join("")}
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Crowd Analysis</h2>
-        <div class="metric">
-          <strong>Total Attendance:</strong> ${data.results.crowdAnalysis.totalAttendance.toLocaleString()}<br>
-          <strong>Utilization Rate:</strong> ${data.results.crowdAnalysis.utilizationRate}%
-        </div>
-        ${data.results.crowdAnalysis.sections
-          .map(
-            (section: any) => `
-          <div class="crowd-item">
-            <strong>${section.name}:</strong> ${section.attendance.toLocaleString()} / ${section.capacity.toLocaleString()} (${section.density}%)<br>
-            Peak Noise: ${section.noiseLevel.peak} ${section.noiseLevel.unit}
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-
-      <div class="section">
-        <h2>Technical Information</h2>
-        <div class="metric">
-          <strong>Analysis Confidence:</strong> ${Math.round(data.results.metadata.confidence * 100)}%<br>
-          <strong>Quality Score:</strong> ${data.results.metadata.qualityScore}/10<br>
-          <strong>Processing Version:</strong> ${data.results.metadata.processingVersion}
-        </div>
-      </div>
+      ${playerHtml}
+      ${crowdHtml}
     `;
   };
+//1332 - 1423 updated report based on the video 
 
   // Download handlers for reports with backend JSON processing
   const handleDownloadReport = async (
@@ -1438,7 +1460,11 @@ Report generated by AFL Analytics Platform
       }
     } catch (error) {
       console.error("Error generating report:", error);
-      alert("Failed to generate report. Please try again.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to generate report. Please try again.",
+      );
     }
   };
 
@@ -1599,21 +1625,13 @@ Export ID: ${Date.now()}-${Math.random().toString(36).substr(2, 9)}
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <Badge
-                  variant={isLive ? "destructive" : "secondary"}
-                  className="animate-pulse"
-                >
-                  <div className="w-2 h-2 rounded-full bg-red-500 mr-2" />
-                  {isLive ? "LIVE" : "OFFLINE"}
-                </Badge>
-                {userEmail && (
+                 {userEmail && (
                   <span className="text-sm text-gray-600 hidden sm:block">
                     Welcome, {userEmail}
                   </span>
                 )}
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                <Button variant="outline" size="sm"onClick={() => navigate("/settings")} >
+                  <Settings className="w-4 h-4 mr-2" />   Settings
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
@@ -1713,7 +1731,7 @@ Export ID: ${Date.now()}-${Math.random().toString(36).substr(2, 9)}
                       >
                         <div className="font-medium">{player.name}</div>
                         <div className="text-sm text-gray-600">
-                          {player.team} ��� {player.position}
+                          {player.team} &bull; {player.position}
                         </div>
                         <div className="text-xs text-green-600 mt-1">
                           Efficiency: {player.efficiency}%
