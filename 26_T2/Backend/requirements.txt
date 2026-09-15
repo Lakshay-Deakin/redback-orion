@@ -24,3 +24,7 @@ python-multipart
 pytest
 pytest-asyncio
 httpx
+
+
+# Excel file import
+openpyxl

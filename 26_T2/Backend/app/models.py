@@ -1,8 +1,16 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    Text,
+    Integer,
+)
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -18,45 +26,56 @@ class User(Base):
     user_id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
     )
 
     email = Column(
         String,
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     username = Column(
         String,
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     password = Column(
         String,
-        nullable=False
+        nullable=False,
     )
 
     role = Column(
         String,
         default="user",
-        nullable=False
+        nullable=False,
+    )
+
+    # Task 2:
+    # Links a user account to an existing player.
+    # Normal users/admins/coaches can leave this as NULL.
+    player_id = Column(
+        Integer,
+        ForeignKey("players.id"),
+        nullable=True,
     )
 
     created_at = Column(
         DateTime,
-        default=_now
+        default=_now,
     )
+
+    player = relationship("Player")
 
     jobs = relationship(
         "Job",
-        back_populates="user"
+        back_populates="user",
     )
 
     refresh_tokens = relationship(
         "RefreshToken",
-        back_populates="user"
+        back_populates="user",
     )
 
 
@@ -66,82 +85,55 @@ class Job(Base):
     job_id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
     )
 
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.user_id"),
-        nullable=False
+        nullable=False,
     )
 
     status = Column(
         String,
         default="processing",
-        nullable=False
+        nullable=False,
     )
 
     video_path = Column(
         String,
-        nullable=True
+        nullable=True,
     )
 
     player_result = Column(
         JSONB,
-        nullable=True
+        nullable=True,
     )
 
     crowd_result = Column(
         JSONB,
-        nullable=True
+        nullable=True,
     )
 
     error = Column(
         String,
-        nullable=True
-    )
-
-    retry_count = Column(
-        Integer,
-        default=0,
-        nullable=False
-    )
-
-    progress = Column(
-        Integer,
-        default=0,
-        nullable=False
-    )
-
-    started_at = Column(
-        DateTime,
-        nullable=True
-    )
-
-    completed_at = Column(
-        DateTime,
-        nullable=True
-    )
-
-    failure_reason = Column(
-        String,
-        nullable=True
+        nullable=True,
     )
 
     created_at = Column(
         DateTime,
-        default=_now
+        default=_now,
     )
 
     updated_at = Column(
         DateTime,
         default=_now,
-        onupdate=_now
+        onupdate=_now,
     )
 
     user = relationship(
         "User",
-        back_populates="jobs"
+        back_populates="jobs",
     )
 
 
@@ -151,40 +143,140 @@ class RefreshToken(Base):
     refresh_token_id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
     )
 
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.user_id"),
-        nullable=False
+        nullable=False,
     )
 
     token = Column(
         String,
         nullable=False,
         unique=True,
-        index=True
+        index=True,
     )
 
     expires_at = Column(
         DateTime,
-        nullable=False
+        nullable=False,
     )
 
     is_active = Column(
         Boolean,
         default=True,
-        nullable=False
+        nullable=False,
     )
 
     created_at = Column(
         DateTime,
         default=_now,
-        nullable=False
+        nullable=False,
     )
 
     user = relationship(
         "User",
-        back_populates="refresh_tokens"
+        back_populates="refresh_tokens",
+    )
+
+
+class Player(Base):
+    __tablename__ = "players"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    name = Column(
+        String,
+        nullable=False,
+    )
+
+    team = Column(
+        String,
+        nullable=False,
+    )
+
+    position = Column(
+        String,
+        nullable=False,
+    )
+
+    photo = Column(
+        Text,
+        nullable=True,
+    )
+
+    kicks = Column(
+        Integer,
+        default=0,
+    )
+
+    handballs = Column(
+        Integer,
+        default=0,
+    )
+
+    marks = Column(
+        Integer,
+        default=0,
+    )
+
+    tackles = Column(
+        Integer,
+        default=0,
+    )
+
+    goals = Column(
+        Integer,
+        default=0,
+    )
+
+    efficiency = Column(
+        Integer,
+        default=75,
+    )
+
+    age = Column(
+        Integer,
+        default=0,
+    )
+
+    height = Column(
+        String,
+        nullable=True,
+    )
+
+    weight = Column(
+        String,
+        nullable=True,
+    )
+
+    jersey_number = Column(
+        Integer,
+        default=0,
+    )
+
+    inside50s = Column(
+        Integer,
+        default=0,
+    )
+
+    disposals = Column(
+        Integer,
+        default=0,
+    )
+
+    team_logo = Column(
+        String,
+        nullable=True,
+    )
+
+    notes = Column(
+        Text,
+        nullable=True,
     )
